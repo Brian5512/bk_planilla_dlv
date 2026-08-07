@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control Mensual DLV</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Disputas Uber</p>
+        <h1>Control mensual DLV</h1>
+      </div>
+      <div class="actions">
+        <button class="button button-secondary" id="export-json" type="button">Exportar datos</button>
+        <button class="button button-secondary" id="export-csv" type="button">Exportar resumen</button>
+        <label class="button button-secondary file-button">
+          Importar datos
+          <input id="import-json" type="file" accept="application/json">
+        </label>
+      </div>
+    </header>
+
+    <section class="toolbar" aria-label="Configuracion del periodo">
+      <label>
+        Mes
+        <input id="month-name" type="text" autocomplete="off">
+      </label>
+      <label>
+        Maximo sin disputar para cumplir
+        <input id="threshold" type="number" min="0" step="1">
+      </label>
+      <button class="button button-primary" id="add-week" type="button">Nueva semana</button>
+      <button class="button button-primary" id="add-store" type="button">Agregar local</button>
+      <button class="button button-danger" id="reset-data" type="button">Generar mes actual</button>
+    </section>
+
+    <section class="stats-grid" id="stats" aria-label="Resumen del mes"></section>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Acumulado mensual</p>
+          <h2>Resumen por local</h2>
+        </div>
+        <div class="table-tools">
+          <label>
+            Buscar
+            <input id="search" type="search" autocomplete="off" placeholder="Codigo o tienda">
+          </label>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="summary-table">
+          <thead></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="section editor-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Carga semanal</p>
+          <h2>Editar semana</h2>
+        </div>
+        <label>
+          Semana
+          <select id="week-select"></select>
+        </label>
+      </div>
+
+      <div class="week-edit-bar">
+        <label>
+          Nombre de semana
+          <input id="week-name" type="text" autocomplete="off">
+        </label>
+        <button class="button button-danger" id="delete-week" type="button">Eliminar semana</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table input-table" id="week-table">
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Tienda</th>
+              <th>P. incorrectos</th>
+              <th>Dev. Uber</th>
+              <th>Disp. rechazadas</th>
+              <th>Disp. aprobada</th>
+              <th>Sin disputas</th>
+              <th>Cumple?</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="store-dialog">
+    <form method="dialog" class="dialog-card">
+      <h2>Agregar local</h2>
+      <label>
+        Codigo
+        <input id="new-store-code" type="text" autocomplete="off" required>
+      </label>
+      <label>
+        Nombre de tienda
+        <input id="new-store-name" type="text" autocomplete="off" required>
+      </label>
+      <menu>
+        <button class="button button-secondary" value="cancel" type="submit">Cancelar</button>
+        <button class="button button-primary" id="save-store" value="default" type="button">Guardar</button>
+      </menu>
+      <p class="form-error" id="store-error" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="week-dialog">
+    <form method="dialog" class="dialog-card">
+      <h2>Nueva semana</h2>
+      <label>
+        Nombre
+        <input id="new-week-name" type="text" autocomplete="off" placeholder="Semana 1 al 07-08" required>
+      </label>
+      <menu>
+        <button class="button button-secondary" value="cancel" type="submit">Cancelar</button>
+        <button class="button button-primary" id="save-week" value="default" type="button">Crear</button>
+      </menu>
+      <p class="form-error" id="week-error" role="alert"></p>
+    </form>
+  </dialog>
+
+  <script src="./app.js"></script>
+</body>
+</html>
