@@ -2,36 +2,79 @@
 
 App local para controlar disputas Uber por local, semana y mes.
 
-## Uso rapido
+## Como abrir la app
 
-Abre `index.html` en el navegador. No necesita servidor, internet ni instalacion.
+1. Descarga o clona este repositorio.
+2. Abre el archivo `index.html` con Google Chrome, Microsoft Edge o Firefox.
+3. Usa la app directamente desde el navegador.
 
-La app crea automaticamente las semanas del mes segun la fecha del sistema. El corte semanal sigue el formato de la planilla original: cada semana termina el viernes.
+No necesita instalar Node, Python, base de datos ni servidor.
 
-## Funciones principales
+## Uso diario
 
-- Agregar locales.
-- Crear o eliminar semanas.
-- Deshacer eliminacion de locales o semanas.
-- Seleccionar mes desde un desplegable.
-- Guardar historico por mes en el navegador.
-- Editar metricas por semana.
-- Calcular automaticamente `Sin disputas`.
-- Marcar cumplimiento cuando `Sin disputas` es menor o igual al limite configurado.
-- Ver resumen mensual acumulado con totales y porcentajes.
-- Ver alertas de cargas pendientes, locales sin datos e incumplimientos.
-- Exportar respaldo JSON con todos los meses guardados.
-- Importar respaldo JSON.
-- Exportar informe mensual HTML bonito e imprimible.
-- Exportar planilla `.xls` desde la app.
+1. Selecciona el mes en el desplegable `Mes`.
+2. Revisa que las semanas generadas sean correctas.
+3. En `Carga semanal`, selecciona la semana que quieres completar.
+4. Ingresa por local:
+   - `P. incorrectos`
+   - `Dev. Uber`
+   - `Disp. rechazadas`
+   - `Disp. aprobada`
+5. La app calcula automaticamente:
+   - `Sin disputas`
+   - `Cumple?`
+   - resumen mensual
+   - porcentaje mensual
+   - alertas del mes
+
+## Regla de cumplimiento
+
+Un local cumple una semana cuando:
+
+```text
+Sin disputas <= Maximo sin disputar para cumplir
+```
+
+Por defecto, el maximo es `3`.
+
+La formula usada es:
+
+```text
+Sin disputas = P. incorrectos - Dev. Uber - Disp. rechazadas - Disp. aprobada
+```
+
+## Datos y respaldos
+
+Los datos se guardan localmente en el navegador de cada computador. Si otra persona abre la app en otro PC, tendra una base vacia hasta importar un respaldo.
+
+Para mover datos entre computadores:
+
+1. En el PC origen, pulsa `Exportar datos`.
+2. Guarda el archivo `.json`.
+3. En el PC destino, abre la app y pulsa `Importar datos`.
+4. Selecciona el archivo `.json`.
+
+## Exportaciones
+
+- `Informe mensual`: descarga un HTML bonito e imprimible.
+- `Planilla Excel`: descarga una planilla `.xls` generada desde la app.
+- `Exportar datos`: descarga respaldo JSON con todos los meses guardados.
 
 ## Planilla complementaria
 
-El archivo `planilla-control-dlv.xlsx` incluye una version Excel con hojas:
+El archivo `planilla-control-dlv.xlsx` incluye una version Excel editable con hojas:
 
 - `Resumen Mensual`
 - `Carga Semanal`
 - `Locales`
 - `Parametros`
 
-Sirve como respaldo editable o para trabajar fuera de la app.
+Sirve como respaldo formal o como alternativa para usuarios que prefieren Excel.
+
+## Recomendaciones
+
+- Exporta respaldo JSON al terminar cada mes.
+- No borres datos del navegador sin antes exportar respaldo.
+- Usa `Informe mensual` para enviar o imprimir resultados.
+- Usa `Planilla Excel` cuando necesites trabajar fuera de la app.
+
