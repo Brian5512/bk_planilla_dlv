@@ -188,6 +188,69 @@ button:focus-visible {
   gap: 12px;
 }
 
+.insights-section {
+  display: grid;
+  gap: 14px;
+}
+
+.summary-chip {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--yellow-soft);
+  color: var(--yellow);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.insight-grid article {
+  display: grid;
+  gap: 3px;
+  min-height: 74px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf7;
+  padding: 12px;
+}
+
+.insight-grid strong {
+  font-size: 25px;
+  line-height: 1;
+}
+
+.insight-grid span,
+.empty-note {
+  color: var(--muted);
+}
+
+.risk-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.risk-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red-deep);
+  padding: 7px 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -372,6 +435,27 @@ menu {
   text-align: center;
 }
 
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(460px, calc(100% - 36px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 20px 55px rgba(80, 35, 20, 0.22);
+  padding: 12px;
+  font-weight: 700;
+}
+
+.toast[hidden] {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .topbar {
     align-items: stretch;
@@ -380,6 +464,10 @@ menu {
 
   .stats-grid {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .insight-grid {
+    grid-template-columns: 1fr;
   }
 
   .actions,
@@ -408,5 +496,13 @@ menu {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .toast {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

@@ -1,4 +1,5 @@
 const STORAGE_KEY = "dlv-control-app-v1";
+const MONTHS_KEY = "dlv-control-app-months-v1";
 
 const initialData = {
   monthName: "Julio",
@@ -138,12 +139,15 @@ const initialData = {
 
 const sysdateInitialData = createSysdateInitialData();
 initialData.monthName = sysdateInitialData.monthName;
+initialData.monthKey = sysdateInitialData.monthKey;
 initialData.stores = sysdateInitialData.stores;
 initialData.weeks = sysdateInitialData.weeks;
 
 let state = loadState();
 let selectedWeekId = state.weeks[0]?.id ?? "";
 let selectedMonthDate = getStateMonthDate(state);
+let monthArchive = loadArchive();
+let lastUndo = null;
 
 const els = {
   monthSelect: document.getElementById("month-select"),
@@ -156,6 +160,10 @@ const els = {
   search: document.getElementById("search"),
   storeDialog: document.getElementById("store-dialog"),
   weekDialog: document.getElementById("week-dialog"),
+  insights: document.getElementById("insights"),
+  undoToast: document.getElementById("undo-toast"),
+  undoText: document.getElementById("undo-text"),
+  undoAction: document.getElementById("undo-action"),
   newStoreCode: document.getElementById("new-store-code"),
   newStoreName: document.getElementById("new-store-name"),
   newWeekName: document.getElementById("new-week-name"),
@@ -165,6 +173,30 @@ const els = {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function compactState(data) {
+  return {
+    monthName: data.monthName,
+    monthKey: data.monthKey,
+    threshold: data.threshold,
+    stores: clone(data.stores),
+    weeks: clone(data.weeks)
+  };
+}
+
+function loadArchive() {
+  try {
+    const saved = localStorage.getItem(MONTHS_KEY);
+    const parsed = saved ? JSON.parse(saved) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveArchive() {
+  localStorage.setItem(MONTHS_KEY, JSON.stringify(monthArchive));
 }
 
 function createSysdateInitialData(referenceDate = new Date()) {
@@ -236,6 +268,12 @@ function getStateMonthDate(data) {
 
 function applyMonth(referenceDate, stores = state.stores) {
   selectedMonthDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const key = monthKey(selectedMonthDate);
+  if (monthArchive[key]) {
+    state = normalizeState(monthArchive[key]);
+    selectedWeekId = state.weeks[0]?.id ?? "";
+    return;
+  }
   state.monthKey = monthKey(selectedMonthDate);
   state.monthName = monthLabel(selectedMonthDate);
   state.weeks = buildMonthWeeks(selectedMonthDate).map((week) => ({
@@ -253,7 +291,15 @@ function applyMonth(referenceDate, stores = state.stores) {
 
 function renderMonthOptions() {
   const year = new Date().getFullYear();
-  const months = Array.from({ length: 12 }, (_, index) => new Date(year, index, 1));
+  const archivedDates = Object.keys(monthArchive).map((key) => {
+    const [archiveYear, archiveMonth] = key.split("-").map(Number);
+    return new Date(archiveYear, archiveMonth - 1, 1);
+  });
+  const months = [
+    ...Array.from({ length: 12 }, (_, index) => new Date(year, index, 1)),
+    ...archivedDates
+  ].filter((date, index, dates) => dates.findIndex((item) => monthKey(item) === monthKey(date)) === index)
+    .sort((a, b) => a - b);
   els.monthSelect.innerHTML = months.map((date) => {
     const key = monthKey(date);
     return `<option value="${key}" ${key === monthKey(selectedMonthDate) ? "selected" : ""}>${escapeHtml(monthLabel(date))}</option>`;
@@ -313,7 +359,9 @@ function normalizeEntry(entry) {
 }
 
 function saveState() {
+  monthArchive[state.monthKey] = compactState(state);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  saveArchive();
 }
 
 function toNumber(value) {
@@ -423,10 +471,56 @@ function render() {
   renderMonthOptions();
   els.threshold.value = state.threshold;
   renderStats();
+  renderInsights();
   renderSummary();
   renderWeekSelector();
   renderWeekEditor();
   saveState();
+}
+
+function renderInsights() {
+  const summaries = state.stores.map(getStoreSummary);
+  const noData = summaries.filter((row) => row.totalWeeks === 0);
+  const failed = summaries.filter((row) => row.totalWeeks > 0 && row.complied < row.totalWeeks);
+  const topRisk = failed
+    .sort((a, b) => a.percent - b.percent || b.totals.withoutDispute - a.totals.withoutDispute)
+    .slice(0, 5);
+
+  const loadedChecks = summaries.reduce((sum, row) => sum + row.totalWeeks, 0);
+  const possibleChecks = state.stores.length * state.weeks.length;
+  const pendingChecks = Math.max(0, possibleChecks - loadedChecks);
+
+  els.insights.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Control operativo</p>
+        <h2>Alertas del mes</h2>
+      </div>
+      <span class="summary-chip">${pendingChecks} cargas pendientes</span>
+    </div>
+    <div class="insight-grid">
+      <article>
+        <strong>${failed.length}</strong>
+        <span>locales con incumplimientos</span>
+      </article>
+      <article>
+        <strong>${noData.length}</strong>
+        <span>locales sin datos cargados</span>
+      </article>
+      <article>
+        <strong>${state.weeks.length}</strong>
+        <span>semanas listas para ${escapeHtml(state.monthName)}</span>
+      </article>
+    </div>
+    <div class="risk-list">
+      ${topRisk.length ? topRisk.map((row) => `
+        <button class="risk-item" type="button" data-search-store="${escapeAttr(row.store.code)}">
+          <span>${escapeHtml(row.store.name)}</span>
+          <strong>${row.complied}/${row.totalWeeks} · ${formatPercent(row.percent)}</strong>
+        </button>
+      `).join("") : `<p class="empty-note">No hay locales en riesgo con los datos actuales.</p>`}
+    </div>
+  `;
 }
 
 function renderStats() {
@@ -515,7 +609,7 @@ function renderSummary() {
   els.summaryTable.querySelector("tfoot").innerHTML = `
     <tr>
       <td></td>
-      <td>Total visible</td>
+      <td>Total mostrado</td>
       ${blankWeekFoot}
       <td class="num">${totals.complied}/${totals.totalWeeks}</td>
       <td>${progress(totals.totalWeeks ? totals.complied / totals.totalWeeks : 0)}</td>
@@ -680,9 +774,22 @@ function saveWeek(event) {
 function deleteStore(code) {
   const store = state.stores.find((item) => item.code === code);
   if (!store) return;
+  const entriesByWeek = state.weeks.map((week) => ({
+    weekId: week.id,
+    entry: clone(week.entries.find((entry) => entry.storeCode === code) || null)
+  }));
   state.stores = state.stores.filter((item) => item.code !== code);
   state.weeks.forEach((week) => {
     week.entries = week.entries.filter((entry) => entry.storeCode !== code);
+  });
+  setUndo(`Local eliminado: ${store.name}`, () => {
+    state.stores.push(store);
+    state.stores.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    entriesByWeek.forEach(({ weekId, entry }) => {
+      const week = state.weeks.find((item) => item.id === weekId);
+      if (week && entry) week.entries.push(entry);
+    });
+    render();
   });
   render();
 }
@@ -690,18 +797,49 @@ function deleteStore(code) {
 function deleteWeek() {
   if (state.weeks.length <= 1) return;
   const week = getWeek();
+  const removedWeek = clone(week);
+  const removedIndex = state.weeks.findIndex((item) => item.id === week.id);
   state.weeks = state.weeks.filter((item) => item.id !== week.id);
   selectedWeekId = state.weeks[0]?.id ?? "";
+  setUndo(`Semana eliminada: ${week.name}`, () => {
+    state.weeks.splice(Math.max(0, removedIndex), 0, removedWeek);
+    selectedWeekId = removedWeek.id;
+    render();
+  });
   render();
 }
 
+function setUndo(message, action) {
+  lastUndo = action;
+  els.undoText.textContent = message;
+  els.undoToast.hidden = false;
+}
+
+function clearUndo() {
+  lastUndo = null;
+  els.undoToast.hidden = true;
+  els.undoText.textContent = "";
+}
+
 function exportJson() {
-  downloadFile(`dlv-control-${safeFileName(state.monthName)}.json`, JSON.stringify(state, null, 2), "application/json");
+  saveState();
+  const backup = {
+    version: 2,
+    currentMonthKey: state.monthKey,
+    current: compactState(state),
+    months: monthArchive
+  };
+  downloadFile(`respaldo-dlv-${safeFileName(state.monthName)}.json`, JSON.stringify(backup, null, 2), "application/json");
 }
 
 function exportCsv() {
   const report = buildMonthlyReport();
   downloadFile(`resumen-mensual-dlv-${safeFileName(state.monthName)}.html`, report, "text/html;charset=utf-8");
+}
+
+function exportXls() {
+  const workbookHtml = buildExcelWorkbookHtml();
+  downloadFile(`planilla-dlv-${safeFileName(state.monthName)}.xls`, workbookHtml, "application/vnd.ms-excel;charset=utf-8");
 }
 
 function buildMonthlyReport() {
@@ -724,7 +862,7 @@ function buildMonthlyReport() {
       <td>${formatNumber(summary.totals.rejected)}</td>
       <td>${formatNumber(summary.totals.approved)}</td>
       <td>${formatNumber(summary.totals.withoutDispute)}</td>
-      <td><span class="${summary.monthlyComplies ? "pill ok" : "pill empty"}">${summary.monthlyComplies ? "Cumple" : "Sin datos"}</span></td>
+      <td><span class="${summary.totalWeeks === 0 ? "pill empty" : summary.monthlyComplies ? "pill ok" : "pill bad"}">${summary.totalWeeks === 0 ? "Sin datos" : summary.monthlyComplies ? "Cumple" : "No cumple"}</span></td>
     </tr>
   `).join("");
 
@@ -801,12 +939,86 @@ function buildMonthlyReport() {
 </html>`;
 }
 
+function buildExcelWorkbookHtml() {
+  const summaries = state.stores.map(getStoreSummary);
+  const weekHeaders = state.weeks.map((week) => `<th>${escapeHtml(week.name)}</th>`).join("");
+  const rows = summaries.map((summary) => `
+    <tr>
+      <td style="mso-number-format:'\\@';">${escapeHtml(summary.store.code)}</td>
+      <td>${escapeHtml(summary.store.name)}</td>
+      ${summary.weeks.map(({ entry }) => `<td>${entry.complies === null ? "Sin datos" : entry.complies ? "Cumple" : "No cumple"}</td>`).join("")}
+      <td>${summary.complied}</td>
+      <td>${summary.totalWeeks}</td>
+      <td>${formatPercent(summary.percent)}</td>
+      <td>${summary.totals.incorrect}</td>
+      <td>${summary.totals.uberReturn}</td>
+      <td>${summary.totals.rejected}</td>
+      <td>${summary.totals.approved}</td>
+      <td>${summary.totals.withoutDispute}</td>
+      <td>${summary.totalWeeks === 0 ? "Sin datos" : summary.monthlyComplies ? "Cumple" : "No cumple"}</td>
+    </tr>
+  `).join("");
+
+  return `<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head>
+  <meta charset="utf-8">
+  <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Resumen mensual</x:Name><x:WorksheetOptions><x:FreezePanes/><x:FrozenNoSplit/><x:SplitHorizontal>1</x:SplitHorizontal><x:TopRowBottomPane>1</x:TopRowBottomPane></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+  <style>
+    body { font-family: Arial, sans-serif; color: #45210c; }
+    h1 { color: #502314; }
+    table { border-collapse: collapse; }
+    th { background: #502314; color: #fffaf0; font-weight: bold; }
+    th, td { border: 1px solid #e8bf8f; padding: 6px; }
+    .meta { background: #ffe3b5; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Resumen mensual DLV - ${escapeHtml(state.monthName)}</h1>
+  <table>
+    <tr><td class="meta">Limite sin disputar</td><td>${state.threshold}</td></tr>
+    <tr><td class="meta">Locales</td><td>${state.stores.length}</td></tr>
+    <tr><td class="meta">Semanas</td><td>${state.weeks.length}</td></tr>
+  </table>
+  <br>
+  <table>
+    <thead>
+      <tr>
+        <th>Codigo</th>
+        <th>Tienda</th>
+        ${weekHeaders}
+        <th>Cumple semanas</th>
+        <th>Semanas cargadas</th>
+        <th>% mensual</th>
+        <th>P. incorrectos</th>
+        <th>Dev. Uber</th>
+        <th>Disp. rechazadas</th>
+        <th>Disp. aprobadas</th>
+        <th>Sin disputas</th>
+        <th>Cumple mes?</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`;
+}
+
 function importJson(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      state = normalizeState(JSON.parse(reader.result));
+      const parsed = JSON.parse(reader.result);
+      if (parsed.months && parsed.current) {
+        monthArchive = parsed.months;
+        state = normalizeState(parsed.current);
+        saveArchive();
+      } else {
+        state = normalizeState(parsed);
+        monthArchive[state.monthKey] = compactState(state);
+        saveArchive();
+      }
       selectedWeekId = state.weeks[0]?.id ?? "";
       render();
     } catch {
@@ -851,6 +1063,7 @@ function escapeAttr(value) {
 }
 
 els.monthSelect.addEventListener("change", () => {
+  saveState();
   const [year, month] = els.monthSelect.value.split("-").map(Number);
   applyMonth(new Date(year, month - 1, 1), state.stores);
   render();
@@ -862,6 +1075,12 @@ els.threshold.addEventListener("input", () => {
 });
 
 els.search.addEventListener("input", renderSummary);
+els.insights.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-search-store]");
+  if (!item) return;
+  els.search.value = item.dataset.searchStore;
+  renderSummary();
+});
 els.weekSelect.addEventListener("change", () => {
   selectedWeekId = els.weekSelect.value;
   renderWeekEditor();
@@ -906,11 +1125,18 @@ document.getElementById("week-form").addEventListener("submit", saveWeek);
 document.getElementById("delete-week").addEventListener("click", deleteWeek);
 document.getElementById("export-json").addEventListener("click", exportJson);
 document.getElementById("export-csv").addEventListener("click", exportCsv);
+document.getElementById("export-xls").addEventListener("click", exportXls);
 document.getElementById("import-json").addEventListener("change", (event) => importJson(event.target.files[0]));
 document.getElementById("reset-data").addEventListener("click", () => {
-  state = createSysdateInitialData();
-  selectedWeekId = state.weeks[0]?.id ?? "";
+  applyMonth(new Date(), state.stores);
   render();
+});
+
+els.undoAction.addEventListener("click", () => {
+  if (!lastUndo) return;
+  const action = lastUndo;
+  clearUndo();
+  action();
 });
 
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {

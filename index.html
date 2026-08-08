@@ -16,7 +16,8 @@
       </div>
       <div class="actions">
         <button class="button button-secondary" id="export-json" type="button">Exportar datos</button>
-        <button class="button button-secondary" id="export-csv" type="button">Exportar resumen</button>
+        <button class="button button-secondary" id="export-csv" type="button">Informe mensual</button>
+        <button class="button button-secondary" id="export-xls" type="button">Planilla Excel</button>
         <label class="button button-secondary file-button">
           Importar datos
           <input id="import-json" type="file" accept="application/json">
@@ -39,6 +40,8 @@
     </section>
 
     <section class="stats-grid" id="stats" aria-label="Resumen del mes"></section>
+
+    <section class="section insights-section" id="insights" aria-label="Alertas y pendientes"></section>
 
     <section class="section">
       <div class="section-heading">
@@ -137,6 +140,11 @@
       <p class="form-error" id="week-error" role="alert"></p>
     </form>
   </dialog>
+
+  <div class="toast" id="undo-toast" hidden>
+    <span id="undo-text"></span>
+    <button class="button button-secondary" id="undo-action" type="button">Deshacer</button>
+  </div>
 
   <script src="./app.js"></script>
 </body>
