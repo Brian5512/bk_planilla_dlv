@@ -18,5 +18,4 @@ La app crea automaticamente las semanas del mes actual usando la fecha del siste
 - Ver resumen mensual acumulado con totales y porcentajes.
 - Exportar respaldo JSON.
 - Importar respaldo JSON.
-- Exportar resumen CSV.
-
+- Exportar resumen mensual en formato HTML bonito e imprimible.

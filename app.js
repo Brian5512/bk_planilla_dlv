@@ -143,9 +143,10 @@ initialData.weeks = sysdateInitialData.weeks;
 
 let state = loadState();
 let selectedWeekId = state.weeks[0]?.id ?? "";
+let selectedMonthDate = getStateMonthDate(state);
 
 const els = {
-  monthName: document.getElementById("month-name"),
+  monthSelect: document.getElementById("month-select"),
   threshold: document.getElementById("threshold"),
   stats: document.getElementById("stats"),
   summaryTable: document.getElementById("summary-table"),
@@ -181,6 +182,7 @@ function createSysdateInitialData(referenceDate = new Date()) {
 
   return {
     monthName: monthLabel(referenceDate),
+    monthKey: monthKey(referenceDate),
     threshold: 3,
     stores,
     weeks
@@ -220,6 +222,44 @@ function monthLabel(referenceDate) {
   return formatter.format(referenceDate).replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
+function monthKey(referenceDate) {
+  return `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getStateMonthDate(data) {
+  if (data.monthKey) {
+    const [year, month] = data.monthKey.split("-").map(Number);
+    if (Number.isFinite(year) && Number.isFinite(month)) return new Date(year, month - 1, 1);
+  }
+  return new Date();
+}
+
+function applyMonth(referenceDate, stores = state.stores) {
+  selectedMonthDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  state.monthKey = monthKey(selectedMonthDate);
+  state.monthName = monthLabel(selectedMonthDate);
+  state.weeks = buildMonthWeeks(selectedMonthDate).map((week) => ({
+    ...week,
+    entries: stores.map((store) => ({
+      storeCode: store.code,
+      incorrect: null,
+      uberReturn: null,
+      rejected: null,
+      approved: null
+    }))
+  }));
+  selectedWeekId = state.weeks[0]?.id ?? "";
+}
+
+function renderMonthOptions() {
+  const year = new Date().getFullYear();
+  const months = Array.from({ length: 12 }, (_, index) => new Date(year, index, 1));
+  els.monthSelect.innerHTML = months.map((date) => {
+    const key = monthKey(date);
+    return `<option value="${key}" ${key === monthKey(selectedMonthDate) ? "selected" : ""}>${escapeHtml(monthLabel(date))}</option>`;
+  }).join("");
+}
+
 function stableId(value) {
   return String(value)
     .normalize("NFD")
@@ -246,6 +286,7 @@ function loadState() {
 function normalizeState(data) {
   const normalized = {
     monthName: data.monthName || "Mes actual",
+    monthKey: data.monthKey || monthKey(new Date()),
     threshold: Number.isFinite(Number(data.threshold)) ? Number(data.threshold) : 3,
     stores: data.stores.map((store) => ({
       code: String(store.code).trim(),
@@ -378,7 +419,8 @@ function render() {
   if (!state.weeks.some((week) => week.id === selectedWeekId)) {
     selectedWeekId = state.weeks[0]?.id ?? "";
   }
-  els.monthName.value = state.monthName;
+  selectedMonthDate = getStateMonthDate(state);
+  renderMonthOptions();
   els.threshold.value = state.threshold;
   renderStats();
   renderSummary();
@@ -584,7 +626,8 @@ function addStore() {
   els.newStoreCode.focus();
 }
 
-function saveStore() {
+function saveStore(event) {
+  event?.preventDefault();
   const code = els.newStoreCode.value.trim();
   const name = els.newStoreName.value.trim();
   if (!code || !name) {
@@ -610,7 +653,8 @@ function addWeek() {
   els.newWeekName.focus();
 }
 
-function saveWeek() {
+function saveWeek(event) {
+  event?.preventDefault();
   const name = els.newWeekName.value.trim();
   if (!name) {
     els.weekError.textContent = "Escribe un nombre para la semana.";
@@ -636,8 +680,6 @@ function saveWeek() {
 function deleteStore(code) {
   const store = state.stores.find((item) => item.code === code);
   if (!store) return;
-  const confirmed = confirm(`Eliminar el local ${store.name}? Se quitara de todas las semanas.`);
-  if (!confirmed) return;
   state.stores = state.stores.filter((item) => item.code !== code);
   state.weeks.forEach((week) => {
     week.entries = week.entries.filter((entry) => entry.storeCode !== code);
@@ -648,8 +690,6 @@ function deleteStore(code) {
 function deleteWeek() {
   if (state.weeks.length <= 1) return;
   const week = getWeek();
-  const confirmed = confirm(`Eliminar ${week.name}?`);
-  if (!confirmed) return;
   state.weeks = state.weeks.filter((item) => item.id !== week.id);
   selectedWeekId = state.weeks[0]?.id ?? "";
   render();
@@ -660,41 +700,105 @@ function exportJson() {
 }
 
 function exportCsv() {
-  const headers = [
-    "codigo",
-    "tienda",
-    ...state.weeks.map((week) => week.name),
-    "cumple_semanas",
-    "total_semanas",
-    "porcentaje_mensual",
-    "p_incorrectos",
-    "dev_uber",
-    "disp_rechazadas",
-    "disp_aprobadas",
-    "sin_disputas",
-    "cumple_mes"
-  ];
+  const report = buildMonthlyReport();
+  downloadFile(`resumen-mensual-dlv-${safeFileName(state.monthName)}.html`, report, "text/html;charset=utf-8");
+}
 
-  const rows = state.stores.map((store) => {
-    const summary = getStoreSummary(store);
-    return [
-      store.code,
-      store.name,
-      ...summary.weeks.map(({ entry }) => entry.complies ? "Cumple" : "No cumple"),
-      summary.complied,
-      summary.totalWeeks,
-      formatPercent(summary.percent),
-      summary.totals.incorrect,
-      summary.totals.uberReturn,
-      summary.totals.rejected,
-      summary.totals.approved,
-      summary.totals.withoutDispute,
-      summary.monthlyComplies ? "Cumple" : "No cumple"
-    ];
-  });
+function buildMonthlyReport() {
+  const summaries = state.stores.map(getStoreSummary);
+  const totalWeeks = summaries.reduce((sum, row) => sum + row.totalWeeks, 0);
+  const totalComplies = summaries.reduce((sum, row) => sum + row.complied, 0);
+  const monthlyComplies = summaries.filter((row) => row.monthlyComplies).length;
+  const totalWithoutDispute = summaries.reduce((sum, row) => sum + row.totals.withoutDispute, 0);
+  const weeklyPercent = totalWeeks ? totalComplies / totalWeeks : 0;
+  const monthPercent = state.stores.length ? monthlyComplies / state.stores.length : 0;
+  const rows = summaries.map((summary) => `
+    <tr>
+      <td>${escapeHtml(summary.store.code)}</td>
+      <td>${escapeHtml(summary.store.name)}</td>
+      ${summary.weeks.map(({ entry }) => `<td><span class="${entry.complies === null ? "pill empty" : entry.complies ? "pill ok" : "pill bad"}">${entry.complies === null ? "Sin datos" : entry.complies ? "Cumple" : "No cumple"}</span></td>`).join("")}
+      <td>${summary.complied}/${summary.totalWeeks}</td>
+      <td><strong>${formatPercent(summary.percent)}</strong></td>
+      <td>${formatNumber(summary.totals.incorrect)}</td>
+      <td>${formatNumber(summary.totals.uberReturn)}</td>
+      <td>${formatNumber(summary.totals.rejected)}</td>
+      <td>${formatNumber(summary.totals.approved)}</td>
+      <td>${formatNumber(summary.totals.withoutDispute)}</td>
+      <td><span class="${summary.monthlyComplies ? "pill ok" : "pill empty"}">${summary.monthlyComplies ? "Cumple" : "Sin datos"}</span></td>
+    </tr>
+  `).join("");
 
-  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\n");
-  downloadFile(`resumen-dlv-${safeFileName(state.monthName)}.csv`, csv, "text/csv;charset=utf-8");
+  return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Resumen mensual DLV - ${escapeHtml(state.monthName)}</title>
+  <style>
+    body { margin: 0; background: #f7efe2; color: #45210c; font-family: Arial, Helvetica, sans-serif; }
+    main { width: min(1280px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 40px; }
+    header { display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 18px; border-bottom: 4px solid #d62300; padding-bottom: 14px; }
+    h1 { margin: 0; font-size: 30px; }
+    .eyebrow { margin: 0 0 4px; color: #d62300; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    .date { color: #7b5130; font-weight: 700; }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .card { background: #fffaf0; border: 1px solid #e8bf8f; border-radius: 8px; padding: 14px; }
+    .label { color: #7b5130; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    .value { margin-top: 6px; font-size: 28px; font-weight: 900; }
+    table { width: 100%; border-collapse: collapse; background: #fffaf0; border: 1px solid #e8bf8f; }
+    th, td { border-bottom: 1px solid #e8bf8f; padding: 8px; text-align: left; vertical-align: middle; }
+    th { background: #502314; color: #fffaf0; font-size: 11px; text-transform: uppercase; }
+    td { font-size: 13px; }
+    .pill { display: inline-block; min-width: 74px; border-radius: 999px; padding: 4px 9px; text-align: center; font-size: 11px; font-weight: 900; }
+    .ok { background: #e0f2d6; color: #197445; }
+    .bad { background: #ffd9ca; color: #d62300; }
+    .empty { background: #fff0bf; color: #8b5d00; }
+    footer { margin-top: 14px; color: #7b5130; font-size: 12px; }
+    @media print {
+      body { background: #fff; }
+      main { width: 100%; padding: 0; }
+      .cards { grid-template-columns: repeat(4, 1fr); }
+      th, td { padding: 6px; font-size: 10px; }
+      .pill { min-width: 58px; padding: 3px 6px; font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Disputas Uber</p>
+        <h1>Resumen mensual DLV</h1>
+      </div>
+      <div class="date">${escapeHtml(state.monthName)}</div>
+    </header>
+    <section class="cards">
+      <article class="card"><div class="label">Locales</div><div class="value">${state.stores.length}</div></article>
+      <article class="card"><div class="label">Cumplen mes</div><div class="value">${monthlyComplies}/${state.stores.length}</div><strong>${formatPercent(monthPercent)}</strong></article>
+      <article class="card"><div class="label">Cumplimiento semanal</div><div class="value">${totalComplies}/${totalWeeks}</div><strong>${formatPercent(weeklyPercent)}</strong></article>
+      <article class="card"><div class="label">Total sin disputas</div><div class="value">${formatNumber(totalWithoutDispute)}</div><strong>Limite: ${state.threshold}</strong></article>
+    </section>
+    <table>
+      <thead>
+        <tr>
+          <th>Codigo</th>
+          <th>Tienda</th>
+          ${state.weeks.map((week) => `<th>${escapeHtml(week.name)}</th>`).join("")}
+          <th>Cumple</th>
+          <th>% mensual</th>
+          <th>P. incorrectos</th>
+          <th>Dev. Uber</th>
+          <th>Rechazadas</th>
+          <th>Aprobadas</th>
+          <th>Sin disputas</th>
+          <th>Cumple mes?</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <footer>Informe generado desde Control mensual DLV.</footer>
+  </main>
+</body>
+</html>`;
 }
 
 function importJson(file) {
@@ -724,11 +828,6 @@ function downloadFile(fileName, content, type) {
   URL.revokeObjectURL(url);
 }
 
-function csvCell(value) {
-  const text = String(value ?? "");
-  return `"${text.replace(/"/g, '""')}"`;
-}
-
 function safeFileName(value) {
   return String(value || "mes")
     .normalize("NFD")
@@ -751,9 +850,10 @@ function escapeAttr(value) {
   return escapeHtml(value);
 }
 
-els.monthName.addEventListener("input", () => {
-  state.monthName = els.monthName.value;
-  saveState();
+els.monthSelect.addEventListener("change", () => {
+  const [year, month] = els.monthSelect.value.split("-").map(Number);
+  applyMonth(new Date(year, month - 1, 1), state.stores);
+  render();
 });
 
 els.threshold.addEventListener("input", () => {
@@ -800,19 +900,23 @@ els.weekTable.addEventListener("click", (event) => {
 });
 
 document.getElementById("add-store").addEventListener("click", addStore);
-document.getElementById("save-store").addEventListener("click", saveStore);
+document.getElementById("store-form").addEventListener("submit", saveStore);
 document.getElementById("add-week").addEventListener("click", addWeek);
-document.getElementById("save-week").addEventListener("click", saveWeek);
+document.getElementById("week-form").addEventListener("submit", saveWeek);
 document.getElementById("delete-week").addEventListener("click", deleteWeek);
 document.getElementById("export-json").addEventListener("click", exportJson);
 document.getElementById("export-csv").addEventListener("click", exportCsv);
 document.getElementById("import-json").addEventListener("change", (event) => importJson(event.target.files[0]));
 document.getElementById("reset-data").addEventListener("click", () => {
-  const confirmed = confirm("Generar el mes actual? Esto reemplazara los datos actuales.");
-  if (!confirmed) return;
   state = createSysdateInitialData();
   selectedWeekId = state.weeks[0]?.id ?? "";
   render();
+});
+
+document.querySelectorAll("[data-close-dialog]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.getElementById(button.dataset.closeDialog)?.close();
+  });
 });
 
 render();
