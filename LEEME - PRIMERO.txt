@@ -1,0 +1,20 @@
+CONTROL MENSUAL DLV
+
+Para usar la app:
+
+1. Haz doble clic en "ABRIR Control mensual DLV.bat".
+2. Si no abre, haz doble clic en "Control mensual DLV.html".
+3. Para crear un acceso directo en el escritorio, ejecuta "Crear acceso directo.bat".
+
+Carpetas:
+
+- 01 - Abrir la app: accesos alternativos para abrir la app.
+- 02 - Manual y capturas: guia de uso e imagenes de referencia.
+- 03 - Planilla Excel: planilla complementaria.
+- 04 - Sistema interno: archivos de la aplicacion. No es necesario tocar esta carpeta.
+
+Importante:
+
+- La app funciona localmente.
+- Los datos quedan guardados en el navegador de este computador.
+- Para mover datos a otro computador, usa "Exportar datos" y luego "Importar datos".

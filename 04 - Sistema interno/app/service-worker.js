@@ -1,15 +1,13 @@
-const CACHE_NAME = "control-mensual-dlv-v1";
+const CACHE_NAME = "control-mensual-dlv-v2";
 
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./Control mensual DLV.html",
   "./manifest.webmanifest",
   "./src/app.js",
   "./src/styles.css",
   "./assets/icons/app-icon.ico",
-  "./assets/icons/app-icon.webp",
-  "./docs/planilla-control-dlv.xlsx"
+  "./assets/icons/app-icon.webp"
 ];
 
 self.addEventListener("install", (event) => {

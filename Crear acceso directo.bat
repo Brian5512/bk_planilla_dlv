@@ -1,3 +1,3 @@
 @echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0tools\crear-acceso-directo.ps1"
+powershell -ExecutionPolicy Bypass -File "%~dp004 - Sistema interno\herramientas\crear-acceso-directo.ps1"
 pause
