@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Control mensual DLV</title>
-  <link rel="icon" type="image/x-icon" href="./app-icon.ico">
-  <link rel="icon" type="image/webp" href="./app-icon.webp">
-  <link rel="apple-touch-icon" href="./app-icon.webp">
+  <link rel="icon" type="image/x-icon" href="./assets/icons/app-icon.ico">
+  <link rel="icon" type="image/webp" href="./assets/icons/app-icon.webp">
+  <link rel="apple-touch-icon" href="./assets/icons/app-icon.webp">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
   <main class="app-shell">
@@ -149,6 +149,11 @@
     <button class="button button-secondary" id="undo-action" type="button">Deshacer</button>
   </div>
 
-  <script src="./app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+      navigator.serviceWorker.register("./service-worker.js");
+    }
+  </script>
+  <script src="./src/app.js"></script>
 </body>
 </html>

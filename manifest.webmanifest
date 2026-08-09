@@ -1,13 +1,15 @@
 {
   "name": "Control mensual DLV",
   "short_name": "Control DLV",
+  "description": "Control mensual local de disputas Uber por tienda y semana.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7efe2",
   "theme_color": "#d62300",
   "icons": [
     {
-      "src": "./app-icon.webp",
+      "src": "./assets/icons/app-icon.webp",
       "sizes": "512x512",
       "type": "image/webp"
     }
