@@ -5,17 +5,15 @@ App local para controlar disputas Uber por local, semana y mes.
 ## Para usar sin saber de tecnologia
 
 1. Abre la carpeta del proyecto.
-2. Haz doble clic en `ABRIR Control mensual DLV.bat`.
-3. Si Windows no permite abrirlo, haz doble clic en `Control mensual DLV.html`.
-4. Para dejar un icono en el escritorio, ejecuta `Crear acceso directo.bat`.
+2. Haz doble clic en `Control mensual DLV.html`.
+3. Para dejar un icono en el escritorio, ejecuta `Crear acceso directo.bat`.
 
-No necesita instalar Node, base de datos ni programas especiales. Si el computador tiene Python, se abrira como app local en el navegador. Si no tiene Python, se abre igual como archivo HTML.
+No necesita instalar Node, Python, base de datos ni programas especiales. La app se abre directo en el navegador.
 
 ## Carpetas principales
 
 ```text
 Control mensual DLV
-|-- ABRIR Control mensual DLV.bat
 |-- Control mensual DLV.html
 |-- Crear acceso directo.bat
 |-- LEEME - PRIMERO.txt
@@ -26,11 +24,10 @@ Control mensual DLV
 `-- 04 - Sistema interno
 ```
 
-- `ABRIR Control mensual DLV.bat`: opcion recomendada para abrir la app.
-- `Control mensual DLV.html`: opcion directa, sin instalador.
+- `Control mensual DLV.html`: opcion recomendada para abrir la app.
 - `Crear acceso directo.bat`: crea el acceso directo en el escritorio.
 - `LEEME - PRIMERO.txt`: instrucciones cortas para usuarios finales.
-- `01 - Abrir la app`: copias de accesos para abrir o crear el acceso directo.
+- `01 - Abrir la app`: acceso alternativo para abrir o crear el acceso directo.
 - `02 - Manual y capturas`: guia de uso e imagenes de referencia.
 - `03 - Planilla Excel`: planilla complementaria editable.
 - `04 - Sistema interno`: archivos internos de la app. No es necesario tocarla.
